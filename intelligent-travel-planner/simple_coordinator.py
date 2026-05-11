@@ -86,7 +86,9 @@ class Coordinator:
 
     def __init__(self):
         from utils.amap_api import amap_api
+        from utils.meituan_api import meituan_api
         self.amap = amap_api
+        self.meituan = meituan_api
         self.steps = []
 
     def plan_trip(self, request: TravelRequest) -> TravelResult:
@@ -305,51 +307,23 @@ class Coordinator:
     def _run_food_agent(
         self, destination: str, days: int, traveler_count: int, preference_level: str = "舒适型"
     ) -> tuple:
-        """Agent 3: 餐饮推荐 - 使用高德地图API搜索真实餐厅数据"""
+        """Agent 3: 餐饮推荐 - 使用美团开放平台API搜索真实餐厅数据"""
         print(f"\n【Agent 3: 餐饮推荐】搜索餐厅...")
         print("-"*40)
 
-        # 调用高德地图API搜索餐厅
-        raw_pois = self.amap.search_restaurants(destination, page_size=10)
-
-        # 将高德POI数据转换为餐厅格式
-        restaurants = []
-        for poi in raw_pois:
-            biz_ext = poi.get("biz_ext", {})
-            cost = biz_ext.get("cost", "")
-            if isinstance(cost, list) or not cost:
-                cost = "价格未知"
-
-            # 从type字段提取菜系分类 (如 "餐饮服务;中餐厅" → "中餐")
-            type_str = poi.get("type", "")
-            cuisine = "特色美食"
-            if ";" in type_str:
-                parts = type_str.split(";")
-                if len(parts) > 1 and parts[1]:
-                    cuisine = parts[1]
-            elif type_str:
-                cuisine = type_str
-
-            restaurants.append({
-                "id": poi.get("id", ""),
-                "name": poi.get("name", "未知"),
-                "address": poi.get("address", ""),
-                "rating": self._safe_float(biz_ext.get("rating", 0)),
-                "avg_price": cost,
-                "cuisine": cuisine,
-                "signature_dishes": [],
-                "location": poi.get("address", ""),
-            })
+        # 调用美团开放平台API搜索餐厅（未配置API时自动降级到参考数据）
+        restaurants = self.meituan.search_restaurants(destination, page_size=10)
 
         # 根据用户偏好选择餐饮档次
         food_budget_per_person = self.FOOD_BUDGET.get(preference_level, self.FOOD_BUDGET["舒适型"])
         food_cost = food_budget_per_person * days * traveler_count
 
-        print(f"  找到{len(restaurants)}家餐厅(高德API)，选择{preference_level}餐饮，预算{food_cost}元")
+        source = "美团API" if self.meituan.is_available() else "参考数据"
+        print(f"  找到{len(restaurants)}家餐厅({source})，选择{preference_level}餐饮，预算{food_cost}元")
         self.steps.append({
             "agent": "餐饮推荐",
-            "action": f"高德API搜索餐厅+选择{preference_level}",
-            "result": f"{len(restaurants)}家餐厅"
+            "action": f"美团API搜索餐厅+选择{preference_level}",
+            "result": f"{len(restaurants)}家餐厅({source})"
         })
 
         return restaurants, food_cost

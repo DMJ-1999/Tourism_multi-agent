@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     amap_api_key: str = "7d516a18e74a0e0418ef7bcb48b52e74"
     amap_security_key: str = ""  # Web服务不需要安全密钥
 
+    # 美团开放平台API配置
+    meituan_api_key: str = ""
+    meituan_api_secret: str = ""
+
     # 系统配置
     debug: bool = False
     max_retries: int = 3

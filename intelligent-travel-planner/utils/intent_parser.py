@@ -19,6 +19,7 @@ class ParsedIntent:
     spend_all_budget: bool = False  # 是否要花光预算
     preference_level: str = "舒适型"  # 经济型/舒适型/高档型/豪华型
     special_requests: str = ""  # 特殊要求
+    target_remaining: float = 0.0  # 用户希望剩余多少元（0表示不限制）
     confidence: float = 0.0  # 解析置信度
 
 
@@ -37,7 +38,7 @@ class IntentParser:
 
 你会收到用户的输入和对话历史。请根据上下文理解用户的意图。
 
-如果用户的新输入是对之前请求的修改或补充（如"花掉全部预算"、"升级酒店档次"），请保留之前的信息并更新相关字段。
+如果用户的新输入是对之前请求的修改或补充（如"花掉全部预算"、"升级酒店档次"、"剩余1000元"），请保留之前的信息并更新相关字段。
 
 如果用户提出全新的请求，则解析新的完整信息。
 
@@ -51,9 +52,11 @@ class IntentParser:
 6. spend_all_budget: 用户是否希望花光全部预算（布尔值）
 7. preference_level: 消费档次偏好（经济型/舒适型/高档型/豪华型）
 8. special_requests: 用户的其他特殊要求
+9. target_remaining: 用户希望剩余多少钱（数字，如"剩余1000元"则填1000；没有提到则不填）
 
 注意：
 - 仔细理解用户意图，如"把预算花完"、"全花掉"、"不差钱"、"花光预算"等表达都表示spend_all_budget为true
+- 如果用户说"剩余1000元"、"留1000块"等，表示希望最终剩余约该金额，budget应保持原值，target_remaining设为对应数字
 - 如果用户只是说"花掉全部预算"而没有其他信息，应该保留对话历史中的目的地、天数、人数、预算等信息
 - 如果用户提到"穷游"、"省钱"等，preference_level应为"经济型"
 - 如果用户提到"豪华"、"高端"、"享受"等，preference_level应为"高档型"或"豪华型"
@@ -69,7 +72,8 @@ class IntentParser:
     "budget": 8000,
     "spend_all_budget": true,
     "preference_level": "舒适型",
-    "special_requests": "想体验当地特色美食"
+    "special_requests": "想体验当地特色美食",
+    "target_remaining": 0
 }
 ```"""
 
@@ -141,15 +145,25 @@ class IntentParser:
                 if last and self._is_modification_request(user_input):
                     destination = last.destination
 
+            target_remaining = float(response_json.get("target_remaining", 0) or 0)
+            # 如果LLM返回了target_remaining，调整budget为目标花费
+            adjusted_budget = float(response_json.get("budget", last.budget if last else 5000))
+            spend_all = bool(response_json.get("spend_all_budget", False))
+            if target_remaining > 0:
+                adjusted_budget = max(0, adjusted_budget - target_remaining)
+                spend_all = True
+                print(f"[LLM] 检测到剩余{target_remaining}元 -> 目标花费{adjusted_budget}元")
+
             return ParsedIntent(
                 destination=destination or (last.destination if last else "北京"),
                 origin=response_json.get("origin", destination or (last.origin if last else "北京")),
                 days=int(response_json.get("days", last.days if last else 3)),
                 traveler_count=int(response_json.get("traveler_count", last.traveler_count if last else 1)),
-                budget=float(response_json.get("budget", last.budget if last else 5000)),
-                spend_all_budget=bool(response_json.get("spend_all_budget", False)),
+                budget=adjusted_budget,
+                spend_all_budget=spend_all,
                 preference_level=response_json.get("preference_level", last.preference_level if last else "舒适型"),
                 special_requests=response_json.get("special_requests", ""),
+                target_remaining=target_remaining,
                 confidence=0.9,
             )
         except Exception as e:
@@ -162,11 +176,14 @@ class IntentParser:
             "花掉", "花光", "全部花完", "预算花完", "把预算",
             "升级", "降级", "换", "改",
             "不够", "太多", "加", "减",
+            "剩余", "留", "省", "只用",
         ]
         return any(kw in user_input for kw in modification_keywords)
 
     def _apply_modification(self, last_intent: ParsedIntent, user_input: str) -> ParsedIntent:
         """应用修改到上一个意图"""
+        import re
+
         result = ParsedIntent(
             destination=last_intent.destination,
             origin=last_intent.origin,
@@ -179,10 +196,26 @@ class IntentParser:
             confidence=0.8,
         )
 
+        # 检测"剩余XXX元"模式：用户希望保留指定金额，其余花掉
+        remain_match = re.search(r'剩余\s*(\d+)\s*[元块]?', user_input)
+        if remain_match:
+            remain_amount = float(remain_match.group(1))
+            result.target_remaining = remain_amount
+            # 将预算调整为 原预算 - 希望剩余 = 目标花费
+            result.budget = max(0, last_intent.budget - remain_amount)
+            result.spend_all_budget = True
+            print(f"[修改] 剩余{remain_amount}元 -> 目标花费{result.budget}元，花光模式开启")
+
         # 检测花光预算意图
         spend_keywords = ["花掉", "花光", "全部花完", "预算花完", "把预算花完"]
         if any(kw in user_input for kw in spend_keywords):
             result.spend_all_budget = True
+
+        # 检测升级/降级
+        if any(k in user_input for k in ["升级", "高档", "豪华"]):
+            result.preference_level = "豪华型"
+        elif any(k in user_input for k in ["降级", "经济", "省钱", "便宜"]):
+            result.preference_level = "经济型"
 
         return result
 
@@ -204,6 +237,7 @@ class IntentParser:
         days = 3
         spend_all = False
         preference_level = "舒适型"
+        target_remaining = 0.0
 
         # 提取城市
         for city in self.FALLBACK_CITIES:
@@ -225,6 +259,15 @@ class IntentParser:
         days_match = re.search(r'(\d+)\s*[日天]', user_input)
         if days_match:
             days = int(days_match.group(1))
+
+        # 检测"剩余XXX元"模式
+        remain_match = re.search(r'剩余\s*(\d+)\s*[元块]?', user_input)
+        if remain_match:
+            remain_amount = float(remain_match.group(1))
+            target_remaining = remain_amount
+            if self.context.last_intent:
+                budget = max(0, self.context.last_intent.budget - remain_amount)
+            spend_all = True
 
         # 检测花光预算意图
         spend_keywords = [
@@ -254,6 +297,7 @@ class IntentParser:
             spend_all_budget=spend_all,
             preference_level=preference_level,
             special_requests="",
+            target_remaining=target_remaining,
             confidence=0.5,  # 规则解析置信度较低
         )
 
