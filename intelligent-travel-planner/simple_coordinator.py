@@ -273,7 +273,7 @@ class Coordinator:
             if isinstance(cost, list) or not cost:
                 # 使用参考价格
                 prices = self.HOTEL_PRICES.get(destination, self.HOTEL_PRICES["北京"])
-                cost = f"Y{prices['舒适型']}起"
+                cost = f"¥{prices['舒适型']}起"
 
             hotels.append({
                 "id": poi.get("id", ""),
@@ -584,8 +584,6 @@ class Coordinator:
             "new_food_cost": new_food_per_person * days * traveler_count,
             "hotel_level": level,
         }
-
-        return adjustments
 
     def _safe_float(self, value) -> float:
         try:
