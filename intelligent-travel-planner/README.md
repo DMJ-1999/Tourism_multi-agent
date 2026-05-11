@@ -1,41 +1,50 @@
 # 智能旅行规划系统 (Intelligent Travel Planner)
 
-基于LangChain多智能体架构的智能旅行规划系统，使用阿里通义千问Qwen作为LLM，通过多Agent协作实现个性化的旅行规划服务。
+基于LangChain多智能体架构的智能旅行规划系统，使用**高德地图API**获取真实景点/酒店/餐厅数据，通过多Agent协作实现个性化的旅行规划服务。
 
 ## 功能特点
 
 - **多智能体协作**: 4个专业Agent协同工作
-  - 🗺️ 行程规划师 - 设计每日活动路线
-  - 🏨 住宿协调员 - 推荐合适的酒店
-  - 🚄 交通调度员 - 规划往返和当地交通
-  - 💰 预算审计员 - 汇总费用并检查预算
+  - 🗺️ 行程规划师 — 高德地图API搜索景点，生成每日行程
+  - 🏨 住宿协调员 — 高德地图API搜索酒店，推荐住宿方案
+  - 🍜 餐饮推荐 — 高德地图API搜索餐厅，推荐当地美食
+  - 💰 预算审计员 — 计算总费用，智能优化预算分配
 
-- **国内LLM支持**: 使用阿里通义千问Qwen模型
-- **模拟数据**: 预置北京、上海、杭州、成都、西安等城市数据
-- **预算优化**: 自动检查预算并提供节省建议
+- **真实数据驱动**: 通过高德地图Web服务API获取实时POI数据
+  - 景点搜索：风景名胜、博物馆、古迹等真实POI
+  - 酒店搜索：酒店、宾馆、民宿等真实房源
+  - 餐厅搜索：中餐厅、火锅、小吃等餐饮POI
+- **智能意图解析**: 基于Qwen LLM理解自然语言，支持多轮对话上下文
+- **预算智能优化**: 用户要求"花光预算"时，自动升级住宿/餐饮档次
 
 ## 项目结构
 
 ```
 intelligent-travel-planner/
 ├── config/                 # 配置管理
-│   └── settings.py         # API密钥、模型参数
+│   └── settings.py         # API密钥、模型参数 (从.env加载)
 ├── data/                   # 数据层
-│   ├── models.py           # 数据模型定义
-│   └── mock_data.py        # 模拟数据
+│   ├── models.py           # Pydantic数据模型定义
+│   └── mock_data.py        # 离线参考数据（API不可用时的降级方案）
 ├── agents/                 # Agent层
-│   ├── base.py             # Agent基类
-│   ├── itinerary/          # 行程规划师
-│   ├── accommodation/      # 住宿协调员
-│   ├── transportation/     # 交通调度员
-│   └── budget/             # 预算审计员
+│   ├── base.py             # Agent基类和系统提示词
+│   ├── itinerary/          # 行程规划师（景点搜索、路线优化）
+│   ├── accommodation/      # 住宿协调员（酒店搜索、费用计算）
+│   ├── transportation/     # 交通调度员（航班/火车参考价格）
+│   └── budget/             # 预算审计员（费用汇总、预算检查）
 ├── orchestration/          # 编排层
-│   ├── state.py            # 状态定义
-│   └── coordinator.py      # 主协调器
-├── utils/                  # 工具函数
+│   └── coordinator.py      # 多Agent协作协调器
+├── utils/                  # 工具层
+│   ├── amap_api.py         # 高德地图Web服务API封装
+│   ├── llm.py              # Qwen LLM (通义千问) 封装
+│   ├── intent_parser.py    # 基于LLM的意图解析器
+│   └── logger.py           # 日志配置
 ├── tests/                  # 测试
+│   └── test_workflow.py    # 单元测试和集成测试
 ├── main.py                 # 命令行入口
-├── web_app.py              # Web界面入口
+├── web_app.py              # Web界面入口 (Gradio表单+对话双模式)
+├── simple_app.py           # 四Agent协作界面 (Gradio对话模式)
+├── simple_coordinator.py   # 四Agent协作协调器 (高德API直连)
 └── pyproject.toml          # 项目配置
 ```
 
@@ -62,19 +71,28 @@ uv sync
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，填入你的通义千问API密钥：
+编辑 `.env` 文件，填入API密钥：
 
 ```bash
+# 通义千问API密钥 (可选，未配置时使用规则解析)
 DASHSCOPE_API_KEY=your_api_key_here
+
+# 高德地图Web服务API密钥 (必填，用于景点/酒店/餐厅搜索)
+AMAP_API_KEY=your_amap_key_here
 ```
 
-获取API密钥：访问 [阿里云DashScope控制台](https://dashscope.console.aliyun.com/)
+获取API密钥：
+- 通义千问：[阿里云DashScope控制台](https://dashscope.console.aliyun.com/)
+- 高德地图：[高德开放平台](https://lbs.amap.com/)
 
 ### 3. 运行程序
 
 ```bash
-# Web界面模式（推荐）
+# Web界面模式 — 对话+表单双模式 (推荐)
 python web_app.py
+
+# 四Agent协作界面 — 带上下文记忆的对话模式
+python simple_app.py
 
 # 命令行默认模式
 python main.py
@@ -83,7 +101,7 @@ python main.py
 python main.py -i
 ```
 
-Web界面启动后，在浏览器中打开 http://localhost:7860 即可使用。
+Web界面启动后，在浏览器中打开终端显示的地址（默认 http://localhost:8099）即可使用。
 
 ## 使用示例
 
@@ -146,49 +164,75 @@ print(f"预算状态: {'充足' if result.is_within_budget else '超支'}")
   ...
 ```
 
+## 数据来源
+
+| 数据类型 | 数据源 | 说明 |
+|---------|--------|------|
+| 景点信息 | **高德地图POI搜索** | 实时搜索风景名胜、博物馆、古迹等 |
+| 酒店信息 | **高德地图POI搜索** | 实时搜索酒店、宾馆、民宿等 |
+| 餐饮信息 | **高德地图POI搜索** | 实时搜索餐厅、火锅、小吃等 |
+| 交通参考价 | 离线参考数据 | 航班/火车实时票价需付费API授权，使用基于真实票价的参考数据 |
+| 当地交通 | 各城市实际价格 | 基于各城市真实地铁/公交/出租车起步价 |
+
+> **降级策略**: 当高德API不可用（无网络或Key失效）时，自动降级到离线参考数据，确保系统仍可运行。
+
 ## Agent说明
 
 ### 1. 行程规划师 (Itinerary Planner)
 
 **职责**: 根据目的地、天数、兴趣偏好设计每日活动路线
 
+**数据来源**: 高德地图API → 离线参考数据
+
 **工具**:
-- `search_attractions` - 搜索景点
-- `get_attraction_details` - 获取景点详情
-- `optimize_route` - 优化游览路线
+- `search_attractions` — 搜索城市景点（高德API优先）
+- `get_attraction_details` — 获取景点详情（高德API优先）
+- `optimize_route` — 优化游览路线
+- `get_city_highlights` — 获取城市旅行亮点
 
 ### 2. 住宿协调员 (Accommodation Agent)
 
 **职责**: 根据预算、位置推荐酒店
 
+**数据来源**: 高德地图API → 离线参考数据
+
 **工具**:
-- `search_hotels` - 搜索酒店
-- `get_hotel_details` - 获取酒店详情
-- `calculate_accommodation_cost` - 计算住宿费用
+- `search_hotels` — 搜索酒店（高德API优先）
+- `get_hotel_details` — 获取酒店详情（高德API优先）
+- `calculate_accommodation_cost` — 计算住宿费用
+- `recommend_hotels_by_budget` — 根据预算推荐酒店
 
 ### 3. 交通调度员 (Transportation Agent)
 
-**职责**: 规划往返交通和当地交通
+**职责**: 规划往返交通和当地交通方案
+
+**数据来源**: 离线参考数据（实时12306/航班数据需付费API授权）
 
 **工具**:
-- `search_flights` - 搜索航班
-- `search_trains` - 搜索火车
-- `estimate_local_transport` - 估算当地交通费用
-- `compare_transport_options` - 比较交通方式
+- `search_flights` — 搜索航班参考价格
+- `search_trains` — 搜索火车参考价格
+- `estimate_local_transport` — 估算当地交通费用（基于各城市真实价格）
+- `compare_transport_options` — 比较交通方式
 
 ### 4. 预算审计员 (Budget Auditor)
 
-**职责**: 汇总费用、检查预算、提供建议
+**职责**: 汇总费用、检查预算、提供优化建议
 
 **工具**:
-- `calculate_total_cost` - 计算总费用
-- `check_budget` - 检查预算
-- `suggest_savings` - 提供节省建议
+- `calculate_total_cost` — 计算总费用
+- `check_budget` — 检查预算状态
+- `suggest_savings` — 提供节省建议
+- `estimate_food_cost` — 估算餐饮费用
+- `generate_budget_report` — 生成完整预算报告
 
 ## 工作流程
 
 ```
-用户请求 → 行程规划师 → 住宿协调员 → 交通调度员 → 预算审计员
+用户请求 → 意图解析器(LLM) → 行程规划师(高德API) → 住宿协调员(高德API)
+                                                          ↓
+                                                    餐饮推荐(高德API)
+                                                          ↓
+                                                    预算审计员(Qwen LLM)
                                                           ↓
                                               ┌───────────┴───────────┐
                                               │    预算是否充足？      │
@@ -196,7 +240,7 @@ print(f"预算状态: {'充足' if result.is_within_budget else '超支'}")
                                                     │           │
                                                    NO          YES
                                                     │           │
-                                              调整并重新规划    输出结果
+                                          LLM智能调整方案    输出结果
 ```
 
 ## 运行测试
@@ -211,19 +255,20 @@ pytest tests/test_workflow.py -v
 
 ## 扩展方向
 
-1. **添加更多城市数据**: 扩展模拟数据覆盖更多目的地
-2. **接入真实API**: 集成高德地图、携程、12306等API
-3. **添加本地向导Agent**: 提供季节活动、支付提示等
-4. **Web界面**: 使用Streamlit或Gradio构建Web应用
-5. **行程保存**: 支持保存和分享旅行计划
+1. **接入实时交通数据**: 集成12306和航班数据API，获取实时票价和余票
+2. **添加天气Agent**: 使用高德天气API提供目的地天气和出行建议
+3. **行程持久化**: 支持保存、分享和导出旅行计划（PDF/JSON）
+4. **多语言支持**: 为境外旅行提供多语言界面
+5. **移动端适配**: 将Gradio界面适配为移动端友好的布局
 
 ## 技术栈
 
-- **LangChain**: Agent框架
+- **LangChain**: Agent框架和LLM抽象
 - **LangGraph**: 工作流编排
-- **通义千问 (Qwen)**: 大语言模型
+- **通义千问 (Qwen)**: 大语言模型（自然语言理解 + 预算智能优化）
+- **高德地图API**: 实时POI数据（景点/酒店/餐厅搜索）
 - **Gradio**: Web交互界面
-- **Pydantic**: 数据验证
+- **Pydantic**: 数据验证和模型定义
 - **pytest**: 测试框架
 
 ## 许可证
@@ -236,6 +281,6 @@ MIT License
 
 ---
 
-**注意**: 本项目使用模拟数据进行演示，实际使用时需要：
-1. 配置通义千问API密钥
-2. 可选：接入真实的旅行API服务
+**系统要求**:
+1. 配置高德地图API密钥（必填，获取真实数据）
+2. 配置通义千问API密钥（可选，未配置时使用规则解析）

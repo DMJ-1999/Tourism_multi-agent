@@ -1,4 +1,8 @@
-"""Tools for transportation agent."""
+"""Tools for transportation agent.
+
+注：航班/火车实时票价查询需要接入12306或航空公司官方API（需付费授权），
+当前使用基于真实票价的参考数据。当地交通费用基于各城市实际地铁/公交价格。
+"""
 
 from typing import Optional
 from langchain_core.tools import tool
@@ -29,7 +33,7 @@ def search_flights(
     if not flights:
         return f"未找到从 {departure_city} 到 {arrival_city} 的航班信息。"
 
-    result_lines = [f"从 {departure_city} 到 {arrival_city} 的航班：\n"]
+    result_lines = [f"从 {departure_city} 到 {arrival_city} 的航班（参考价格）：\n"]
 
     for i, flight in enumerate(flights, 1):
         result_lines.append(
@@ -66,7 +70,7 @@ def search_trains(
     if not trains:
         return f"未找到从 {departure_city} 到 {arrival_city} 的火车信息。"
 
-    result_lines = [f"从 {departure_city} 到 {arrival_city} 的火车：\n"]
+    result_lines = [f"从 {departure_city} 到 {arrival_city} 的火车（参考价格）：\n"]
 
     for i, train in enumerate(trains, 1):
         result_lines.append(
@@ -149,7 +153,7 @@ def compare_transport_options(
     flights = mock_data.search_flights(departure_city, arrival_city)
     trains = mock_data.search_trains(departure_city, arrival_city)
 
-    result_lines = [f"从 {departure_city} 到 {arrival_city} 的交通方式比较：\n"]
+    result_lines = [f"从 {departure_city} 到 {arrival_city} 的交通方式比较（参考价格）：\n"]
 
     if flights:
         min_flight_price = min(f.price for f in flights)
@@ -206,7 +210,7 @@ def get_round_trip_cost(
             total = min_outbound + min_inbound
 
             return (
-                f"往返航班费用：\n"
+                f"往返航班费用（参考价格）：\n"
                 f"去程: {departure_city}→{arrival_city}，最低¥{min_outbound}\n"
                 f"返程: {arrival_city}→{departure_city}，最低¥{min_inbound}\n"
                 f"往返总计: ¥{total}"
@@ -221,7 +225,7 @@ def get_round_trip_cost(
             total = min_outbound + min_inbound
 
             return (
-                f"往返火车费用：\n"
+                f"往返火车费用（参考价格）：\n"
                 f"去程: {departure_city}→{arrival_city}，最低¥{min_outbound}\n"
                 f"返程: {arrival_city}→{departure_city}，最低¥{min_inbound}\n"
                 f"往返总计: ¥{total}"

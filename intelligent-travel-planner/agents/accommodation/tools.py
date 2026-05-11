@@ -1,9 +1,48 @@
-"""Tools for accommodation agent."""
+"""Tools for accommodation agent - 使用高德地图API搜索真实酒店数据."""
 
 from typing import Optional
 from langchain_core.tools import tool
 
 from data.mock_data import mock_data
+
+try:
+    from utils.amap_api import amap_api
+    HAS_AMAP = True
+except ImportError:
+    HAS_AMAP = False
+
+
+def _format_amap_hotels(pois: list, location: str) -> str:
+    """将高德POI数据格式化为酒店列表文本."""
+    result_lines = [f"【高德地图 - {location}真实酒店数据】\n"]
+    for i, poi in enumerate(pois, 1):
+        name = poi.get("name", "未知")
+        address = poi.get("address", "")
+        biz_ext = poi.get("biz_ext", {})
+        rating = biz_ext.get("rating", "暂无")
+        cost = biz_ext.get("cost", "")
+        if isinstance(cost, list) or not cost:
+            cost = "价格未知"
+
+        result_lines.append(
+            f"{i}. {name}\n"
+            f"   地址: {address}\n"
+            f"   评分: {rating if rating != '暂无' else '暂无评分'}\n"
+            f"   参考价格: {cost}\n"
+            f"   酒店ID: {poi.get('id', '')}\n"
+        )
+    return "\n".join(result_lines)
+
+
+def _get_hotels_from_amap(location: str, page_size: int = 10) -> list:
+    """从高德API获取酒店POI列表."""
+    if not HAS_AMAP:
+        return []
+    try:
+        return amap_api.search_hotels(location, page_size=page_size)
+    except Exception as e:
+        print(f"高德API搜索酒店失败: {e}")
+        return []
 
 
 @tool
@@ -25,6 +64,12 @@ def search_hotels(
     Returns:
         酒店列表信息
     """
+    # 优先使用高德地图API获取真实数据
+    amap_pois = _get_hotels_from_amap(location)
+    if amap_pois:
+        return _format_amap_hotels(amap_pois, location)
+
+    # 高德API不可用时降级到模拟数据
     hotels = mock_data.search_hotels(
         location=location,
         max_price=max_price,
@@ -33,9 +78,9 @@ def search_hotels(
     )
 
     if not hotels:
-        return f"未找到 {location} 的酒店信息，请尝试调整筛选条件。"
+        return f"未找到 {location} 的酒店信息，请检查城市名称或网络连接。"
 
-    result_lines = [f"在 {location} 找到 {len(hotels)} 家酒店：\n"]
+    result_lines = [f"在 {location} 找到 {len(hotels)} 家酒店（离线参考数据）：\n"]
 
     for i, hotel in enumerate(hotels, 1):
         stars = "⭐" * hotel.star_rating
@@ -65,15 +110,34 @@ def get_hotel_details(hotel_id: str) -> str:
     Returns:
         酒店详细信息
     """
-    hotel = mock_data.get_hotel_by_id(hotel_id)
+    # 优先使用高德API获取真实详情
+    if HAS_AMAP:
+        try:
+            poi = amap_api.get_poi_detail(hotel_id)
+            if poi:
+                name = poi.get("name", "未知")
+                address = poi.get("address", "未知")
+                biz_ext = poi.get("biz_ext", {})
+                rating = biz_ext.get("rating", "暂无")
+                cost = biz_ext.get("cost", "暂无")
+                return (
+                    f"酒店详情（高德地图）：{name}\n"
+                    f"地址: {address}\n"
+                    f"评分: {rating}\n"
+                    f"参考价格: {cost}\n"
+                    f"酒店ID: {hotel_id}"
+                )
+        except Exception as e:
+            print(f"高德API获取酒店详情失败: {e}")
 
+    # 降级到模拟数据
+    hotel = mock_data.get_hotel_by_id(hotel_id)
     if not hotel:
         return f"未找到酒店ID: {hotel_id}"
 
     facilities = "、".join(hotel.facilities)
-
     return (
-        f"酒店详情：{hotel.name}\n"
+        f"酒店详情（离线参考数据）：{hotel.name}\n"
         f"位置: {hotel.location}\n"
         f"星级: {'⭐' * hotel.star_rating}\n"
         f"价格: ¥{hotel.price_per_night}/晚\n"
@@ -134,6 +198,29 @@ def recommend_hotels_by_budget(
     """
     max_price_per_night = total_budget / (nights * room_count)
 
+    # 优先使用高德API
+    amap_pois = _get_hotels_from_amap(location)
+    if amap_pois:
+        result_lines = [
+            f"【高德地图】根据您的预算（¥{total_budget}），在{location}推荐以下酒店：\n"
+        ]
+        for i, poi in enumerate(amap_pois[:5], 1):
+            name = poi.get("name", "未知")
+            address = poi.get("address", "")
+            biz_ext = poi.get("biz_ext", {})
+            rating = biz_ext.get("rating", "暂无")
+            cost = biz_ext.get("cost", "")
+            if isinstance(cost, list) or not cost:
+                cost = "价格未知"
+            result_lines.append(
+                f"{i}. {name}\n"
+                f"   地址: {address}\n"
+                f"   评分: {rating}\n"
+                f"   参考价格: {cost}\n"
+            )
+        return "\n".join(result_lines)
+
+    # 降级到模拟数据
     hotels = mock_data.search_hotels(location=location)
     affordable_hotels = [
         h for h in hotels
@@ -147,11 +234,10 @@ def recommend_hotels_by_budget(
             f"建议：降低酒店档次或增加预算。"
         )
 
-    # 按评分排序
     affordable_hotels.sort(key=lambda x: x.rating, reverse=True)
 
     result_lines = [
-        f"根据您的预算（¥{total_budget}），在{location}推荐以下酒店：\n"
+        f"根据您的预算（¥{total_budget}），在{location}推荐以下酒店（离线参考数据）：\n"
     ]
 
     for i, hotel in enumerate(affordable_hotels[:3], 1):

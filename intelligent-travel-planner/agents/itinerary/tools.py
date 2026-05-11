@@ -98,12 +98,32 @@ def get_attraction_details(attraction_id: str) -> str:
     Returns:
         景点详细信息的字符串
     """
-    # 先尝试模拟数据
-    attraction = mock_data.get_attraction_by_id(attraction_id)
+    # 优先使用高德API获取真实数据
+    if HAS_AMAP:
+        try:
+            poi = amap_api.get_poi_detail(attraction_id)
+            if poi:
+                biz_ext = poi.get("biz_ext", {})
+                cost = biz_ext.get("cost", "暂无")
+                if isinstance(cost, list) or not cost:
+                    cost = "暂无"
+                return (
+                    f"景点详情（高德地图）：{poi.get('name', '未知')}\n"
+                    f"地址: {poi.get('address', '未知')}\n"
+                    f"类型: {poi.get('type', '未知')}\n"
+                    f"电话: {poi.get('tel', '暂无')}\n"
+                    f"评分: {biz_ext.get('rating', '暂无')}\n"
+                    f"参考票价: {cost}\n"
+                    f"景点ID: {attraction_id}"
+                )
+        except Exception as e:
+            print(f"高德API获取景点详情失败: {e}")
 
+    # 降级到模拟数据
+    attraction = mock_data.get_attraction_by_id(attraction_id)
     if attraction:
         return (
-            f"景点详情：{attraction.name}\n"
+            f"景点详情（离线参考数据）：{attraction.name}\n"
             f"位置: {attraction.location}\n"
             f"类别: {attraction.category}\n"
             f"标签: {'、'.join(attraction.tags)}\n"
@@ -114,21 +134,6 @@ def get_attraction_details(attraction_id: str) -> str:
             f"景点介绍: {attraction.description}\n"
             f"景点ID: {attraction.id}"
         )
-
-    # 尝试高德API
-    if HAS_AMAP:
-        try:
-            poi = amap_api.get_poi_detail(attraction_id)
-            if poi:
-                return (
-                    f"景点详情：{poi.get('name', '未知')}\n"
-                    f"地址: {poi.get('address', '未知')}\n"
-                    f"类型: {poi.get('type', '未知')}\n"
-                    f"电话: {poi.get('tel', '暂无')}\n"
-                    f"评分: {poi.get('biz_ext', {}).get('rating', '暂无')}\n"
-                )
-        except Exception as e:
-            print(f"获取景点详情失败: {e}")
 
     return f"未找到景点ID: {attraction_id}"
 
@@ -141,6 +146,8 @@ def optimize_route(
 ) -> str:
     """
     优化景点游览路线，按天分配景点。
+
+    注：路线优化需要景点游览时长等结构化数据（高德API不提供），因此使用离线参考数据。
 
     Args:
         attraction_ids: 景点ID列表
