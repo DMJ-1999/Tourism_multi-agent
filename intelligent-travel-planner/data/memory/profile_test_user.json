@@ -1,0 +1,17 @@
+{
+  "user_id": "test_user",
+  "preferred_destinations": [
+    "杭州"
+  ],
+  "interest_categories": [
+    "自然风光"
+  ],
+  "budget_preference": "舒适型",
+  "avg_group_size": 1.0,
+  "avg_trip_days": 3,
+  "avg_budget": 6000.0,
+  "total_trips_planned": 1,
+  "last_destination": "杭州",
+  "last_updated": "2026-05-13 14:15:26",
+  "preferred_tags": []
+}

@@ -1,0 +1,19 @@
+{
+  "session_id": "test_session",
+  "summary": "",
+  "turns": [
+    {
+      "role": "user",
+      "content": "我想去杭州",
+      "timestamp": "2026-05-13T14:15:26.021995",
+      "metadata": {}
+    },
+    {
+      "role": "assistant",
+      "content": "好的，为您规划杭州之旅",
+      "timestamp": "2026-05-13T14:15:26.022010",
+      "metadata": {}
+    }
+  ],
+  "saved_at": "2026-05-13T14:15:26.022025"
+}
