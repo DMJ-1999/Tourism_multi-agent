@@ -46,13 +46,12 @@ def format_unified_response(result) -> str:
     lines.append("### 费用明细")
     ticket_cost = result.itinerary.get("estimated_ticket_cost", 0)
     acc_cost = result.accommodation.get("estimated_cost", 0)
-    trans_cost = result.transportation.get("estimated_cost", 0)
-    food_cost = result.food.get("food_cost", 0)
+    food_cost = result.food.get("estimated_cost", 0)
     lines.append(f"| 类别 | 金额 |")
     lines.append(f"|------|------|")
     lines.append(f"| 🎫 门票 | ¥{ticket_cost:.0f} |")
     lines.append(f"| 🏨 住宿 | ¥{acc_cost:.0f} |")
-    lines.append(f"| 🚄 交通 | ¥{trans_cost:.0f} |")
+    lines.append(f"| 🍜 餐饮 | ¥{food_cost:.0f} |")
     lines.append(f"| 🍜 餐饮 | ¥{food_cost:.0f} |")
     lines.append(f"| **总计** | **¥{result.total_cost:.0f}** |")
 
@@ -76,7 +75,7 @@ def format_unified_response(result) -> str:
     if result.revision_count > 0:
         lines.append("")
         lines.append(f"### 预算修订 ({result.revision_count}次)")
-        for tip in result.savings_tips:
+        for tip in (result.savings_tips if hasattr(result, "savings_tips") else []):
             lines.append(f"- {tip}")
 
     # 旅行贴士
@@ -260,7 +259,7 @@ def create_unified_ui():
 
                 #### 4. 行动执行模块 (Action Execution Module)
                 - **AgentOrchestrator**: 基于拓扑排序的工作流编排
-                - 支持并行执行（住宿/交通/餐饮可并发）
+                - 支持并行执行（住宿/餐饮可并发）
                 - 预算修订循环（最多3次迭代）
 
                 #### 5. 结果评估模块 (Result Evaluation Module)

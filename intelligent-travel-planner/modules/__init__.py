@@ -3,7 +3,7 @@
 from .planning import TaskDecomposer, PlanGenerator, SubTask, ExecutionPlan
 from .memory import ConversationMemory, UserProfile, MemoryStore
 from .tools import ToolRegistry, ToolExecutor, create_agent_with_tools
-from .execution import AgentOrchestrator, ExecutionState, WorkflowNode
+from .execution import TravelGraphBuilder, AgentState, build_initial_state, run_react_agent
 from .evaluation import PlanEvaluator, ConstraintValidator, FeedbackIntegrator, EvaluationReport
 
 __all__ = [
@@ -21,9 +21,10 @@ __all__ = [
     "ToolExecutor",
     "create_agent_with_tools",
     # 行动执行模块
-    "AgentOrchestrator",
-    "ExecutionState",
-    "WorkflowNode",
+    "TravelGraphBuilder",
+    "AgentState",
+    "run_react_agent",
+    "build_initial_state",
     # 结果评估模块
     "PlanEvaluator",
     "ConstraintValidator",

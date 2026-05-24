@@ -1,18 +1,20 @@
 {
   "user_id": "default",
   "preferred_destinations": [
-    "北京"
+    "北京",
+    "杭州",
+    "成都"
   ],
   "interest_categories": [
     "历史文化",
     "美食"
   ],
   "budget_preference": "舒适型",
-  "avg_group_size": 2.0,
-  "avg_trip_days": 4,
-  "avg_budget": 5000.0,
-  "total_trips_planned": 1,
-  "last_destination": "北京",
-  "last_updated": "2026-05-13 14:11:44",
+  "avg_group_size": 1.8,
+  "avg_trip_days": 3,
+  "avg_budget": 6200.0,
+  "total_trips_planned": 5,
+  "last_destination": "成都",
+  "last_updated": "2026-05-22 19:59:49",
   "preferred_tags": []
 }

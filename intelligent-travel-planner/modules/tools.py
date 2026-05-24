@@ -37,12 +37,12 @@ def _lazy_import_tools():
         calculate_accommodation_cost,
         recommend_hotels_by_budget,
     )
-    from agents.transportation.tools import (
-        search_flights,
-        search_trains,
-        estimate_local_transport,
-        compare_transport_options,
-        get_round_trip_cost,
+    from agents.food.tools import (
+        search_restaurants_by_city,
+        get_restaurant_detail,
+        search_local_cuisine,
+        calculate_food_cost,
+        recommend_dining_plan,
     )
     from agents.budget.tools import (
         calculate_total_cost,
@@ -64,12 +64,12 @@ def _lazy_import_tools():
         "get_hotel_details": get_hotel_details,
         "calculate_accommodation_cost": calculate_accommodation_cost,
         "recommend_hotels_by_budget": recommend_hotels_by_budget,
-        # 交通工具
-        "search_flights": search_flights,
-        "search_trains": search_trains,
-        "estimate_local_transport": estimate_local_transport,
-        "compare_transport_options": compare_transport_options,
-        "get_round_trip_cost": get_round_trip_cost,
+        # 餐饮工具 (美团API)
+        "search_restaurants_by_city": search_restaurants_by_city,
+        "get_restaurant_detail": get_restaurant_detail,
+        "search_local_cuisine": search_local_cuisine,
+        "calculate_food_cost": calculate_food_cost,
+        "recommend_dining_plan": recommend_dining_plan,
         # 预算工具
         "calculate_total_cost": calculate_total_cost,
         "check_budget": check_budget,
@@ -110,11 +110,11 @@ class ToolRegistry:
             "get_hotel_details": "accommodation",
             "calculate_accommodation_cost": "accommodation",
             "recommend_hotels_by_budget": "accommodation",
-            "search_flights": "transportation",
-            "search_trains": "transportation",
-            "estimate_local_transport": "transportation",
-            "compare_transport_options": "transportation",
-            "get_round_trip_cost": "transportation",
+            "search_restaurants_by_city": "food",
+            "get_restaurant_detail": "food",
+            "search_local_cuisine": "food",
+            "calculate_food_cost": "food",
+            "recommend_dining_plan": "food",
             "calculate_total_cost": "budget",
             "check_budget": "budget",
             "suggest_savings": "budget",

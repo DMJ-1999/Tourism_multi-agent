@@ -54,9 +54,9 @@ def print_classic_result(result):
         accommodation_cost = result.accommodation.get("estimated_cost", 0)
         print(f"  住宿费用: {accommodation_cost:.0f}元")
 
-    if result.transportation:
-        transport_cost = result.transportation.get("estimated_cost", 0)
-        print(f"  交通费用: {transport_cost:.0f}元")
+    if result.food:
+        food_cost = result.food.get("estimated_cost", 0)
+        print(f"  餐饮费用: {food_cost:.0f}元")
 
     print(f"\n  总费用: {result.total_cost:.0f}元")
 
@@ -116,12 +116,15 @@ def print_unified_result(result):
     if result.accommodation:
         accommodation_cost = result.accommodation.get("estimated_cost", 0)
         print(f"  住宿费用: {accommodation_cost:.0f}元")
-    if result.transportation:
-        transport_cost = result.transportation.get("estimated_cost", 0)
-        print(f"  交通费用: {transport_cost:.0f}元")
     if result.food:
-        food_cost = result.food.get("food_cost", 0)
+        food_cost = result.food.get("estimated_cost", 0)
         print(f"  餐饮费用: {food_cost:.0f}元")
+    # 餐饮费用从总费用反推
+    known = (result.itinerary.get("estimated_ticket_cost", 0)
+             + result.accommodation.get("estimated_cost", 0)
+             + result.food.get("estimated_cost", 0))
+    food_cost = max(0, result.total_cost - known)
+    print(f"  餐饮费用: {food_cost:.0f}元")
 
     print(f"\n  总费用: {result.total_cost:.0f}元")
     if result.is_within_budget:
@@ -156,7 +159,7 @@ def print_unified_result(result):
     # 修订记录
     if result.revision_count > 0:
         print(f"\n[修订] 预算修订 {result.revision_count} 次")
-        if result.savings_tips:
+        if hasattr(result, "savings_tips") and result.savings_tips:
             for tip in result.savings_tips:
                 print(f"  - {tip}")
 
